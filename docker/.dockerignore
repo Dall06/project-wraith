@@ -22,5 +22,6 @@
 **/values.dev.yaml
 *.config.json
 *.config.yml
+*.config.yaml
 *.log
 README.md

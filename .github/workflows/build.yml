@@ -9,7 +9,7 @@ on:
       - 'main'
 
 jobs:
-  test:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,15 +21,38 @@ jobs:
           go-version: '1.22'
           check-latest: true
 
+  test:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
       - name: Run tests
         run: go test ./...
 
+  swagger:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Generate Swagger docs
+        run: swag init
+
+      - name: Save Swagger docs as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: swagger-docs
+          path: ./docs
+
   build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, swagger]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Restore Swagger docs
+        uses: actions/download-artifact@v3
+        with:
+          name: swagger-docs
+          path: ./docs
 
       - name: Login to Docker registry
         uses: docker/login-action@v3
@@ -46,4 +69,4 @@ jobs:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:latest,${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:${{ github.sha }}
