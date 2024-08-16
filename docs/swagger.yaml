@@ -1,0 +1,289 @@
+definitions:
+  gateway.Reset:
+    properties:
+      email:
+        type: string
+      newPass:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    type: object
+  gateway.User:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Golang REST Api for user interaction
+  title: project-wraith
+paths:
+  /hello:
+    get:
+      consumes:
+      - application/json
+      description: Returns the application version in the response rendered page.
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page with application version
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Get Application Version
+      tags:
+      - Static
+  /reset/modify:
+    post:
+      consumes:
+      - application/json
+      description: Resets the user's password with the provided new password.
+      parameters:
+      - description: Reset request object
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gateway.Reset'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset successful
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Failed to reset password
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Modify password
+      tags:
+      - Reset
+  /reset/start:
+    post:
+      consumes:
+      - application/json
+      description: Initiates the password reset process by sending a reset link to
+        the user's email and SMS.
+      parameters:
+      - description: Reset request object
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gateway.Reset'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Successfully sent password reset link
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Failed to parse request or send notifications
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Start password reset
+      tags:
+      - Reset
+  /user/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves user details based on the provided user ID.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User details
+          schema:
+            $ref: '#/definitions/gateway.User'
+        "400":
+          description: Invalid ID or request
+          schema: {}
+        "404":
+          description: User not found
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Get user details
+      tags:
+      - User
+  /user/edit:
+    put:
+      consumes:
+      - application/json
+      description: Updates the user details with the provided information.
+      parameters:
+      - description: Updated user details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gateway.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User details updated successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Failed to parse request or update error
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Edit user details
+      tags:
+      - User
+  /user/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and generates a session token if the credentials
+        are valid.
+      parameters:
+      - description: User login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gateway.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful with session token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Failed to parse request or invalid credentials
+          schema: {}
+        "401":
+          description: Unauthorized access
+          schema: {}
+        "500":
+          description: Internal server error
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: User login
+      tags:
+      - User
+  /user/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logs out the user by expiring the session token.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: No session found
+          schema: {}
+        "500":
+          description: Failed to expire session
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: User logout
+      tags:
+      - User
+  /user/register:
+    post:
+      consumes:
+      - application/json
+      description: Registers a new user with the provided details.
+      parameters:
+      - description: User registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gateway.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Registration successful
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Failed to parse request or registration error
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: User registration
+      tags:
+      - User
+  /user/remove:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a user based on the provided details.
+      parameters:
+      - description: User details for removal
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gateway.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User removed successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Failed to parse request or removal error
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Remove user
+      tags:
+      - User
+swagger: "2.0"

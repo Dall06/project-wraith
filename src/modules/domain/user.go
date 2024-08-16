@@ -1,0 +1,126 @@
+package domain
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"go.mongodb.org/mongo-driver/bson"
+	_ "go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"project-wraith/src/pkg/db"
+)
+
+type UserRepository struct {
+	collection *mongo.Collection
+	ctx        context.Context
+}
+
+func NewUserRepository(client *db.Client) *UserRepository {
+	return &UserRepository{
+		collection: client.Collection("users"),
+		ctx:        client.Ctx,
+	}
+}
+
+func (r *UserRepository) Get(user User) (*User, error) {
+	filter := bson.M{}
+
+	if user.ID != "" {
+		filter["_id"] = user.ID
+	}
+	if user.Username != "" {
+		filter["username"] = user.Username
+	}
+	if user.Email != "" {
+		filter["email"] = user.Email
+	}
+	if user.Phone != "" {
+		filter["phone"] = user.Phone
+	}
+
+	err := r.collection.FindOne(r.ctx, filter).Decode(&user)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("user not found (%e)", err)
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *UserRepository) Create(user User) error {
+	_, err := r.collection.InsertOne(r.ctx, user)
+	return err
+}
+
+func (r *UserRepository) Update(user User) error {
+	if user.ID == "" {
+		return errors.New("user ID is required")
+	}
+
+	// Create a filter to match the user by ID
+	filter := bson.M{"_id": user.ID}
+
+	// Create an update document and add only non-empty fields
+	toUpdate := bson.M{}
+
+	if user.Name != "" {
+		toUpdate["name"] = user.Name
+	}
+	if user.Email != "" {
+		toUpdate["email"] = user.Email
+	}
+	if user.Phone != "" {
+		toUpdate["phone"] = user.Phone
+	}
+	if user.Username != "" {
+		toUpdate["username"] = user.Username
+	}
+	if user.Meta != nil {
+		toUpdate["meta"] = user.Meta
+	}
+	if !user.UpdatedAt.IsZero() {
+		toUpdate["updatedAt"] = user.UpdatedAt
+	}
+	if user.Password != "" {
+		toUpdate["password"] = user.Password
+	}
+
+	if len(toUpdate) == 0 {
+		return nil
+	}
+
+	update := bson.M{
+		"$set": toUpdate,
+	}
+
+	// Perform the update operation
+	_, err := r.collection.UpdateOne(
+		r.ctx,
+		filter,
+		update,
+		options.Update().SetUpsert(false),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	return nil
+}
+
+func (r *UserRepository) Delete(id string) error {
+	filter := bson.M{"_id": id}
+
+	result, err := r.collection.DeleteOne(r.ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	if result.DeletedCount == 0 {
+		return fmt.Errorf("user with ID %s not found", id)
+	}
+	return nil
+}
