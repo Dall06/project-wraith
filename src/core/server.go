@@ -3,113 +3,86 @@ package core
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/template/html/v2"
-	"os"
-	"os/signal"
-	"project-wraith/src/config"
-	"project-wraith/src/consts"
-	"project-wraith/src/modules/domain"
+	"github.com/gofiber/fiber/v2/middleware/monitor"
+	"github.com/gofiber/swagger"
 	"project-wraith/src/modules/gateway"
-	"project-wraith/src/modules/rules"
-	"project-wraith/src/pkg/apikey"
-	"project-wraith/src/pkg/db"
+	"project-wraith/src/pkg/guard"
 	"project-wraith/src/pkg/logger"
-	"project-wraith/src/pkg/mail"
-	"project-wraith/src/pkg/sms"
-	"project-wraith/src/pkg/tools"
 )
 
-func Server(cfg *config.Config, log logger.Logger) error {
-	dbClient := db.NewClient(cfg.Database.Uri, cfg.Database.Name)
-	err := dbClient.Open()
-	if err != nil {
-		log.Error("Failed to open db client", err)
-		return err
-	}
+func Middleware(
+	app *fiber.App,
+	log logger.Logger,
+	paths map[string]string,
+	serverApiKey,
+	jwtSecret,
+	cookiesSecret string,
+	manticore guard.Manticore) {
 
-	resetSmsAsset, err := tools.ReadAsset(cfg.Sms.ResetAsset)
-	if err != nil {
-		log.Error("Failed to read sms reset asset", err)
-		return err
-	}
+	app.Use(CORS())
+	app.Use(Compress())
+	app.Use(ETag())
+	app.Use(Helmet())
+	app.Use(Recover())
+	app.Use(CRSF())
+	app.Use(EncryptCookie(cookiesSecret))
 
-	mailer := mail.NewMail(
-		cfg.Mail.From,
-		cfg.Mail.Password,
-		cfg.Mail.Host,
-		cfg.Mail.Port)
-	smsResetSender := sms.NewTwilio(
-		cfg.Sms.From,
-		cfg.Sms.AccountSID,
-		cfg.Sms.AuthToken,
-		resetSmsAsset,
-	)
-
-	userRepo := domain.NewUserRepository(dbClient)
-
-	userRule := rules.NewRule(userRepo, cfg.Server.JWTSecret)
-	userCtrl := gateway.NewUserController(
-		log,
-		userRule,
-		cfg.Server.JWTSecret,
-		cfg.Server.CookiesExpiration)
-
-	resetRule := rules.NewResetRule(userRepo, cfg.Server.JWTSecret)
-	resetCtrl := gateway.NewResetController(
-		log,
-		resetRule,
-		userRule,
-		cfg.Server.JWTSecret,
-		cfg.Server.CookiesExpiration,
-		mailer,
-		smsResetSender,
-		cfg.Redirects.ResetUrl,
-	)
-
-	staticsCtrl := gateway.NewStaticsController(log, consts.AppManifest.Version)
-	serverApiKey := apikey.CrateApiKey(cfg.Server.KeyWord)
-
-	engine := html.New("./views", ".html")
-
-	serverName := fmt.Sprintf("%s@%s", cfg.Server.Name, consts.AppManifest.Version)
-	serverConfig := fiber.Config{
-		Prefork:       false,
-		CaseSensitive: true,
-		ServerHeader:  cfg.Server.Header,
-		AppName:       serverName,
-		Views:         engine,
-	}
-	server := fiber.New(serverConfig)
-
-	Middleware(server, cfg.Server.BasePath, serverApiKey, cfg.Server.JWTSecret, cfg.Server.CookiesSecret)
-	EnRoute(server, cfg.Server.BasePath, userCtrl, resetCtrl, staticsCtrl)
-
-	go func() {
-		listenOn := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-		err := server.Listen(listenOn)
-		if err != nil {
-			log.Error("Failed to listen on port", err)
-			return
+	for key, path := range paths {
+		if key != "hello" {
+			app.Use(path, KeyAuth(serverApiKey))
 		}
-	}()
 
-	log.Info(
-		"Running api server in %s:%d, with base path %s",
-		cfg.Server.Host,
-		cfg.Server.Port,
-		cfg.Server.BasePath)
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
-
-	log.Info("Shutting down server...")
-	err = server.Shutdown()
-	if err != nil {
-		log.Error("Failed to shutdown", err)
-		return err
+		switch key {
+		case "user":
+			app.Use(path, JwtWare(jwtSecret, "cookie:user_session"))
+		case "reset":
+			app.Use(fmt.Sprintf("%s/form", path), ResetAuth(jwtSecret))
+		case "logs":
+			app.Use(path, ManticoreSight(manticore, log))
+		case "metrics":
+			app.Use(path, ManticoreSight(manticore, log))
+		default:
+			continue
+		}
 	}
+}
 
-	log.Info("Successfully shutdown!")
-	return nil
+func EnRoute(
+	app *fiber.App,
+	paths map[string]string,
+	user gateway.UserController,
+	auth gateway.AuthController,
+	reset gateway.ResetController,
+	statics gateway.StaticsController) {
+
+	for key, path := range paths {
+		switch key {
+		case "hello":
+			app.Get(path, statics.HelloHuman)
+		case "logs":
+			app.Get(path, statics.LogReport)
+		case "metrics":
+			app.Get(paths["metrics"], monitor.New(monitor.Config{
+				Title: "project-wraith metrics",
+			}))
+		case "swagger":
+			app.Get(path, swagger.HandlerDefault)
+		case "auth":
+			authGroup := app.Group(path)
+			authGroup.Post("/login", auth.Login)
+			authGroup.Put("/exit", auth.Exit)
+		case "reset":
+			passResetGroup := app.Group(path)
+			passResetGroup.Post("/init", reset.Start)
+			passResetGroup.Post("/modify", reset.Modify)
+		case "user":
+			usersGroup := app.Group(path)
+			usersGroup.Post("/register", user.Register)
+			usersGroup.Get("/detail/:id", user.Get)
+			usersGroup.Put("/edit", user.Edit)
+			usersGroup.Delete("/remove", user.Remove)
+		default:
+			continue
+		}
+	}
 }

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"project-wraith/src/consts"
+	"project-wraith/src/pkg/tools"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -44,11 +47,10 @@ func (l *logger) Initialize() error {
 			return err
 		}
 
-		fmt.Printf("logFilePath: %s, level: %s\n", logFilePath, level.String())
-
 		cfg := zap.Config{
 			Level:             zap.NewAtomicLevelAt(level),
 			Development:       false,
+			DisableCaller:     true,
 			DisableStacktrace: true,
 			Encoding:          "json",
 			EncoderConfig:     encoderConfig,
@@ -72,18 +74,21 @@ func (l *logger) Initialize() error {
 }
 
 func (l *logger) Warn(message string, args ...interface{}) {
-	formattedMessage := fmt.Sprintf(message, args...)
-	l.loggers[zapcore.WarnLevel].Warnf("WARN: %s", formattedMessage)
+	formattedMessage := fmt.Sprintf(strings.ToLower(message), args...)
+	callerInfo := tools.ExtractCallerInfo(consts.LoggerCallerLevel)
+	l.loggers[zapcore.WarnLevel].Warnw(formattedMessage, "caller", callerInfo)
 }
 
 func (l *logger) Info(message string, args ...interface{}) {
-	formattedMessage := fmt.Sprintf(message, args...)
-	l.loggers[zapcore.InfoLevel].Infof("INFO: %s", formattedMessage)
+	formattedMessage := fmt.Sprintf(strings.ToLower(message), args...)
+	callerInfo := tools.ExtractCallerInfo(consts.LoggerCallerLevel)
+	l.loggers[zapcore.InfoLevel].Infow(formattedMessage, "caller", callerInfo)
 }
 
 func (l *logger) Error(message string, args ...interface{}) {
-	formattedMessage := fmt.Sprintf(message, args...)
-	l.loggers[zapcore.ErrorLevel].Errorf("ERROR: %s", formattedMessage)
+	formattedMessage := fmt.Sprintf(strings.ToLower(message), args...)
+	callerInfo := tools.ExtractCallerInfo(consts.LoggerCallerLevel)
+	l.loggers[zapcore.ErrorLevel].Errorw(formattedMessage, "caller", callerInfo)
 }
 
 func (l *logger) getLogFilePath(level string) (string, error) {

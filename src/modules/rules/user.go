@@ -3,6 +3,7 @@ package rules
 import (
 	"errors"
 	"project-wraith/src/modules/domain"
+	"project-wraith/src/pkg/alchemy"
 	"project-wraith/src/pkg/tools"
 	"time"
 )
@@ -16,14 +17,22 @@ type UserRule interface {
 }
 
 type userRule struct {
-	repo      *domain.UserRepository
-	shaSecret string
+	repo          domain.UserRepository
+	encryptDbData bool
+	dbDataSecret  string
+	passSecret    string
 }
 
-func NewRule(repo *domain.UserRepository, shaSecret string) UserRule {
+func NewRule(
+	repo domain.UserRepository,
+	encryptDbData bool,
+	dbDataSecret string,
+	passSecret string) UserRule {
 	return &userRule{
-		repo:      repo,
-		shaSecret: shaSecret,
+		repo:          repo,
+		encryptDbData: encryptDbData,
+		dbDataSecret:  dbDataSecret,
+		passSecret:    passSecret,
 	}
 }
 
@@ -37,6 +46,13 @@ func (r userRule) Login(model User) (*User, error) {
 		Password: model.Password,
 	}
 
+	if r.encryptDbData {
+		err := alchemy.Transmutation(&entity, r.dbDataSecret)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	response, err := r.repo.Get(entity)
 	if err != nil {
 		return nil, err
@@ -46,7 +62,14 @@ func (r userRule) Login(model User) (*User, error) {
 		return nil, errors.New("user not found")
 	}
 
-	if response.Password != tools.Sha512(r.shaSecret, entity.Password) {
+	if r.encryptDbData {
+		err = alchemy.Revert(&response, r.dbDataSecret)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if response.Password != tools.Sha512(r.passSecret, entity.Password) {
 		return nil, errors.New("password incorrect")
 	}
 
@@ -69,9 +92,16 @@ func (r userRule) Register(model User) (*User, error) {
 		Email:     model.Email,
 		Name:      model.Name,
 		Phone:     model.Phone,
-		Password:  tools.Sha512(r.shaSecret, model.Password),
+		Password:  tools.Sha512(r.passSecret, model.Password),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
+	}
+
+	if r.encryptDbData {
+		err := alchemy.Transmutation(&entity, r.dbDataSecret)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err := r.repo.Create(entity)
@@ -89,8 +119,15 @@ func (r userRule) Edit(model User) error {
 		Email:     model.Email,
 		Name:      model.Name,
 		Phone:     model.Phone,
-		Password:  tools.Sha512(r.shaSecret, model.Password),
+		Password:  tools.Sha512(r.passSecret, model.Password),
 		UpdatedAt: time.Now(),
+	}
+
+	if r.encryptDbData {
+		err := alchemy.Transmutation(&entity, r.dbDataSecret)
+		if err != nil {
+			return err
+		}
 	}
 
 	err := r.repo.Update(entity)
@@ -107,6 +144,13 @@ func (r userRule) Get(model User) (*User, error) {
 		Username: model.Username,
 		Email:    model.Email,
 		Phone:    model.Phone,
+	}
+
+	if r.encryptDbData {
+		err := alchemy.Transmutation(&entity, r.dbDataSecret)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	response, err := r.repo.Get(entity)
@@ -127,6 +171,13 @@ func (r userRule) Get(model User) (*User, error) {
 		Password: response.Password,
 	}
 
+	if r.encryptDbData {
+		err = alchemy.Revert(&result, r.dbDataSecret)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return result, nil
 }
 
@@ -139,6 +190,13 @@ func (r userRule) Remove(model User) error {
 		Password: model.Password,
 	}
 
+	if r.encryptDbData {
+		err := alchemy.Transmutation(&entity, r.dbDataSecret)
+		if err != nil {
+			return err
+		}
+	}
+
 	response, err := r.repo.Get(entity)
 	if err != nil {
 		return nil
@@ -148,7 +206,14 @@ func (r userRule) Remove(model User) error {
 		return errors.New("user not found")
 	}
 
-	if response.Password != tools.Sha512(r.shaSecret, entity.Password) {
+	if r.encryptDbData {
+		err = alchemy.Revert(&response, r.dbDataSecret)
+		if err != nil {
+			return err
+		}
+	}
+
+	if response.Password != tools.Sha512(r.passSecret, entity.Password) {
 		return errors.New("password incorrect")
 	}
 

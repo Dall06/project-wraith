@@ -26,7 +26,7 @@ func GetProjectPath() (string, error) {
 	return "", fmt.Errorf("failed to find project root directory")
 }
 
-func BuildPath(name, extension string, folderPath ...string) string {
-	path := filepath.Join(append([]string{name}, folderPath...)...)
+func BuildPath(name, extension, folderPath string) string {
+	path := filepath.Join(folderPath, name)
 	return fmt.Sprintf("%s.%s", path, extension)
 }

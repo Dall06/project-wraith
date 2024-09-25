@@ -10,21 +10,29 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type Client struct {
-	Client *mongo.Client
+type Client interface {
+	Open() error
+	Close() error
+	Collection(coll string) *mongo.Collection
+	Client() *mongo.Client
+	Ctx() context.Context
+}
+
+type client struct {
+	client *mongo.Client
 	Db     *mongo.Database
-	Ctx    context.Context
+	ctx    context.Context
 	uri    string
 	dbName string
 }
 
 // NewClient creates a new instance of Client.
-func NewClient(uri, dbName string) *Client {
-	return &Client{uri: uri, dbName: dbName}
+func NewClient(uri, dbName string) Client {
+	return &client{uri: uri, dbName: dbName}
 }
 
 // Open connects to the MongoDB instance.
-func (mc *Client) Open() error {
+func (mc *client) Open() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -37,21 +45,29 @@ func (mc *Client) Open() error {
 		return err
 	}
 
-	mc.Client = client
+	mc.client = client
 	mc.Db = client.Database(mc.dbName)
-	mc.Ctx = ctx
+	mc.ctx = ctx
 
 	return nil
 }
 
 // Close disconnects from the MongoDB instance.
-func (mc *Client) Close() error {
-	if mc.Client == nil {
+func (mc *client) Close() error {
+	if mc.client == nil {
 		return fmt.Errorf("client not connected")
 	}
-	return mc.Client.Disconnect(context.Background())
+	return mc.client.Disconnect(context.Background())
 }
 
-func (mc *Client) Collection(coll string) *mongo.Collection {
+func (mc *client) Collection(coll string) *mongo.Collection {
 	return mc.Db.Collection(coll)
+}
+
+func (mc *client) Client() *mongo.Client {
+	return mc.client
+}
+
+func (mc *client) Ctx() context.Context {
+	return mc.ctx
 }

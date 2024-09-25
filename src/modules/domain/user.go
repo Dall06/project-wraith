@@ -5,25 +5,30 @@ import (
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
-	_ "go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"project-wraith/src/pkg/db"
 )
 
-type UserRepository struct {
+type UserRepository interface {
+	Get(user User) (*User, error)
+	Create(user User) error
+	Update(user User) error
+	Delete(id string) error
+}
+
+type userRepository struct {
 	collection *mongo.Collection
 	ctx        context.Context
 }
 
-func NewUserRepository(client *db.Client) *UserRepository {
-	return &UserRepository{
-		collection: client.Collection("users"),
-		ctx:        client.Ctx,
+func NewUserRepository(collection mongo.Collection, ctx context.Context) UserRepository {
+	return &userRepository{
+		collection: &collection,
+		ctx:        ctx,
 	}
 }
 
-func (r *UserRepository) Get(user User) (*User, error) {
+func (r *userRepository) Get(user User) (*User, error) {
 	filter := bson.M{}
 
 	if user.ID != "" {
@@ -50,12 +55,12 @@ func (r *UserRepository) Get(user User) (*User, error) {
 	return &user, nil
 }
 
-func (r *UserRepository) Create(user User) error {
+func (r *userRepository) Create(user User) error {
 	_, err := r.collection.InsertOne(r.ctx, user)
 	return err
 }
 
-func (r *UserRepository) Update(user User) error {
+func (r *userRepository) Update(user User) error {
 	if user.ID == "" {
 		return errors.New("user ID is required")
 	}
@@ -111,7 +116,7 @@ func (r *UserRepository) Update(user User) error {
 	return nil
 }
 
-func (r *UserRepository) Delete(id string) error {
+func (r *userRepository) Delete(id string) error {
 	filter := bson.M{"_id": id}
 
 	result, err := r.collection.DeleteOne(r.ctx, filter)

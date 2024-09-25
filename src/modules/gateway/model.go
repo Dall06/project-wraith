@@ -15,3 +15,8 @@ type Reset struct {
 	Phone       string `json:"phone"`
 	NewPassword string `json:"newPass,omitempty"`
 }
+
+type Outcome struct {
+	Token    string `json:"token"`
+	ResetUrl string `json:"resetUrl"`
+}

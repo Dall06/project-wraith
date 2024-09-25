@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/base64"
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
@@ -11,8 +12,10 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/keyauth"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"project-wraith/src/modules/rules"
+	"project-wraith/src/pkg/guard"
+	"project-wraith/src/pkg/link"
 	"project-wraith/src/pkg/logger"
+	"project-wraith/src/pkg/token"
 	"time"
 )
 
@@ -36,7 +39,7 @@ func Compress() fiber.Handler {
 
 func EncryptCookie(secret string) fiber.Handler {
 	cfg := encryptcookie.Config{
-		Key: secret,
+		Key: base64.StdEncoding.EncodeToString([]byte(secret)),
 	}
 	return encryptcookie.New(cfg)
 }
@@ -99,24 +102,39 @@ func CORS() fiber.Handler {
 	return cors.New(*cfg)
 }
 
-func ResetPassword(resetRule rules.ResetRule, log logger.Logger) fiber.Handler {
+func ResetAuth(jwtSecret string) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		tkn := ctx.Get("X-Reset-Token")
 		if tkn == "" {
-			log.Error("parameter not found: {key: X-Reset-Token, value: %v}", tkn)
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid token"})
+			return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{Message: "invalid token"})
 		}
 
-		reset := rules.Reset{
-			Token: tkn,
+		valid, err := token.ValidateJwtToken(tkn, jwtSecret, nil)
+		if err != nil {
+			return err
 		}
 
-		err := resetRule.Validate(reset)
+		if !valid {
+			return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{Message: "invalid token"})
+		}
+
+		return ctx.Next()
+	}
+}
+
+func ManticoreSight(manticore guard.Manticore, log logger.Logger) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		cred := guard.Credentials{
+			Username: ctx.FormValue("username"),
+			Password: ctx.FormValue("password"),
+		}
+
+		err := manticore.StingAndProwl(cred)
 		if err != nil {
 			log.Error("failed to validate token: %v", err)
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{Message: err.Error()})
 		}
 
-		return nil
+		return ctx.Next()
 	}
 }

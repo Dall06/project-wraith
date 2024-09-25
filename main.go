@@ -28,7 +28,7 @@ func main() {
 		panic(err)
 	}
 
-	err = core.Server(cfg, log)
+	err = core.Start(cfg, log)
 	if err != nil {
 		panic(err)
 	}

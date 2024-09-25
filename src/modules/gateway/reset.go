@@ -3,7 +3,9 @@ package gateway
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"project-wraith/src/modules/rules"
+	"project-wraith/src/pkg/link"
 	"project-wraith/src/pkg/logger"
 	"project-wraith/src/pkg/mail"
 	"project-wraith/src/pkg/sms"
@@ -63,8 +65,8 @@ func (rc resetController) Start(ctx *fiber.Ctx) error {
 	req := Reset{}
 	if err := ctx.BodyParser(&req); err != nil {
 		rc.log.Error("failed to parse request: %v", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "failed to parse request",
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{
+			Message: "failed to parse request",
 		})
 	}
 
@@ -77,19 +79,21 @@ func (rc resetController) Start(ctx *fiber.Ctx) error {
 	entity, err := rc.reset.Start(model)
 	if err != nil {
 		rc.log.Error("failed to get user: %v", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{
+			Message: err.Error(),
 		})
 	}
 
-	resetWebUrl := fmt.Sprintf(rc.webUrl, entity.Token)
-
 	bindStruct := struct {
-		Username string
-		ResetUrl string
+		Username   string
+		Email      string
+		Phone      string
+		ResetToken string
 	}{
-		Username: entity.Username,
-		ResetUrl: resetWebUrl,
+		Username:   entity.Username,
+		Email:      entity.Email,
+		Phone:      entity.Phone,
+		ResetToken: entity.Token,
 	}
 
 	err = rc.mailer.Send(
@@ -99,29 +103,34 @@ func (rc resetController) Start(ctx *fiber.Ctx) error {
 		[]string{entity.Email})
 	if err != nil {
 		rc.log.Error("failed to send mail: %v", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{
+			Message: err.Error(),
 		})
 	}
+
+	resetWebUrl := fmt.Sprintf("%s/%s", rc.webUrl, entity.Token)
 
 	res, err := rc.smsSender.SendSMSTwilio(
 		entity.Phone, true, resetWebUrl)
 	if err != nil {
 		rc.log.Error("failed to send sms: %v", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{
+			Message: err.Error(),
 		})
 	}
 	if res == "" {
 		rc.log.Error("failed to send sms: %v", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "failed to send sms",
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{
+			Message: "failed to send sms",
 		})
 	}
 
-	return ctx.Status(fiber.StatusAccepted).JSON(fiber.Map{
-		"message": "password reset link sent",
-		"token":   entity.Token,
+	return ctx.Status(fiber.StatusAccepted).JSON(link.Response{
+		Message: "password reset link sent",
+		Content: Outcome{
+			Token:    entity.Token,
+			ResetUrl: resetWebUrl,
+		},
 	})
 
 }
@@ -138,29 +147,40 @@ func (rc resetController) Start(ctx *fiber.Ctx) error {
 // @Failure 400 {object} error "Failed to reset password"
 // @Security ApiKeyAuth
 func (rc resetController) Modify(ctx *fiber.Ctx) error {
-	var req Reset
+	tkn := ctx.Get("X-Reset-Token")
+	if tkn == "" {
+		log.Error("parameter not found: {key: X-Reset-Token, value: %v}", tkn)
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{Message: "invalid token"})
+	}
+
+	reset := rules.Reset{
+		Token: tkn,
+	}
+	res, err := rc.reset.Validate(reset)
+	if err != nil {
+		log.Error("failed to validate: %v", err)
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{Message: err.Error()})
+	}
+
+	req := Reset{}
 	if err := ctx.BodyParser(&req); err != nil {
-		rc.log.Error("failed to parse request: %v", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "failed to parse request",
-		})
+		log.Error("failed to parse request: %v", err)
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{Message: "failed to parse request"})
 	}
 
 	model := rules.User{
-		Email:    req.Email,
-		Phone:    req.Phone,
+		ID:       res.ID,
 		Password: req.NewPassword,
 	}
-
-	err := rc.user.Edit(model)
+	err = rc.user.Edit(model)
 	if err != nil {
 		rc.log.Error("failed to reset password: %v", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{
+			Message: err.Error(),
 		})
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "password reset successful",
+	return ctx.Status(fiber.StatusOK).JSON(link.Response{
+		Message: "password reset successful",
 	})
 }
