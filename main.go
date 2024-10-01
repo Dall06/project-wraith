@@ -1,11 +1,11 @@
 package main
 
 import (
-	"project-wraith/src/config"
-	"project-wraith/src/consts"
-	"project-wraith/src/core"
-	"project-wraith/src/pkg/logger"
-	"project-wraith/src/pkg/tools"
+	"project-wraith/pkg/config"
+	"project-wraith/pkg/consts"
+	"project-wraith/pkg/core"
+	"project-wraith/pkg/modules/logger"
+	"project-wraith/pkg/modules/tools"
 )
 
 // @title project-wraith
