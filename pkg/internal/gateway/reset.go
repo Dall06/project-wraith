@@ -141,7 +141,7 @@ func (rc resetController) Start(ctx *fiber.Ctx) error {
 // @Tags Reset
 // @Accept json
 // @Produce json
-// @Router /reset/modify [post]
+// @Router /reset/modify [put]
 // @Param request body Reset true "Reset request object"
 // @Success 200 {object} map[string]string "Password reset successful"
 // @Failure 400 {object} error "Failed to reset password"

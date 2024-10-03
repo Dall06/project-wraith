@@ -41,8 +41,8 @@ func NewAuthController(
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Router /user/login [post]
-// @Param request body Auth true "Auth login credentials"
+// @Router /auth/login [post]
+// @Param request body User true "Auth login credentials"
 // @Success 200 {object} map[string]string "Login successful with session token"
 // @Failure 400 {object} error "Failed to parse request or invalid credentials"
 // @Failure 401 {object} error "Unauthorized access"
@@ -103,7 +103,7 @@ func (ac authController) Login(ctx *fiber.Ctx) error {
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Router /user/logout [post]
+// @Router /auth/exit [post]
 // @Success 200 {object} map[string]string "Logout successful"
 // @Failure 401 {object} error "No session found"
 // @Failure 500 {object} error "Failed to expire session"
