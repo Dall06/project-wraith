@@ -2,16 +2,22 @@ package rules
 
 import "github.com/stretchr/testify/mock"
 
-type MockResetRepository struct {
+type MockResetRule struct {
 	mock.Mock
 }
 
-func (m *MockResetRepository) Validate(reset Reset) error {
+func (m *MockResetRule) Validate(reset Reset) (*Reset, error) {
 	args := m.Called(reset)
-	return args.Error(0)
+	if args.Get(0) != nil {
+		return args.Get(0).(*Reset), args.Error(1)
+	}
+	return nil, args.Error(1)
 }
 
-func (m *MockResetRepository) Start(reset Reset) error {
+func (m *MockResetRule) Start(reset Reset) (*Reset, error) {
 	args := m.Called(reset)
-	return args.Error(0)
+	if args.Get(0) != nil {
+		return args.Get(0).(*Reset), args.Error(1)
+	}
+	return nil, args.Error(1)
 }

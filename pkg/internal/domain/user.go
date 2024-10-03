@@ -14,6 +14,7 @@ type UserRepository interface {
 	Create(user User) error
 	Update(user User) error
 	Delete(id string) error
+	Duplicated(user User) ([]User, error)
 }
 
 type userRepository struct {
@@ -128,4 +129,53 @@ func (r *userRepository) Delete(id string) error {
 		return fmt.Errorf("user with ID %s not found", id)
 	}
 	return nil
+}
+
+func (r *userRepository) Duplicated(user User) ([]User, error) {
+	filter := bson.M{}
+
+	// Add filters based on provided user details
+	if user.Username != "" {
+		filter["username"] = user.Username
+	}
+	if user.Email != "" {
+		filter["email"] = user.Email
+	}
+	if user.Phone != "" {
+		filter["phone"] = user.Phone
+	}
+
+	// Use Find to retrieve potential duplicates
+	cursor, err := r.collection.Find(r.ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find duplicates: %w", err)
+	}
+
+	var duplicates []User
+
+	// Decode the results into the duplicates slice
+	for cursor.Next(r.ctx) {
+		var existingUser User
+		if err := cursor.Decode(&existingUser); err != nil {
+			return nil, fmt.Errorf("failed to decode user: %w", err)
+		}
+		duplicates = append(duplicates, existingUser)
+	}
+
+	// Check for any cursor error
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
+	}
+
+	// Return an error if duplicates are found
+	if len(duplicates) > 0 {
+		return duplicates, nil
+	}
+
+	err = cursor.Close(r.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to close cursor: %w", err)
+	}
+
+	return nil, nil // No duplicates found
 }

@@ -97,6 +97,15 @@ func (r userRule) Register(model User) (*User, error) {
 		UpdatedAt: time.Now(),
 	}
 
+	duplicates, err := r.repo.Duplicated(entity)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(duplicates) > 0 {
+		return nil, errors.New("user already exists")
+	}
+
 	if r.encryptDbData {
 		err := alchemy.Transmutation(&entity, r.dbDataSecret)
 		if err != nil {
@@ -104,7 +113,7 @@ func (r userRule) Register(model User) (*User, error) {
 		}
 	}
 
-	err := r.repo.Create(entity)
+	err = r.repo.Create(entity)
 	if err != nil {
 		return nil, err
 	}

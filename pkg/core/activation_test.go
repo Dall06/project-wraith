@@ -2,16 +2,17 @@ package core_test
 
 import (
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"project-wraith/pkg/core"
-	"project-wraith/pkg/modules/lics"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"project-wraith/pkg/core" // Update import according to your project's structure
+	"project-wraith/pkg/modules/lics"
 )
 
-func TestActivate(test *testing.T) {
-	test.Parallel()
+func TestActivate(t *testing.T) {
+	t.Parallel()
 	// Define test cases
 	tests := []struct {
 		name        string
@@ -26,7 +27,7 @@ func TestActivate(test *testing.T) {
 				LicenseKey:         "valid-key",
 				IsActive:           true,
 				ExpiryDate:         time.Now().Add(24 * time.Hour), // Active and not expired
-				IssuedAt:           time.Now(),                     // Set the IssuedAt for clarity
+				IssuedAt:           time.Now(),
 				MaxActivations:     5,
 				CurrentActivations: 1,
 			},
@@ -68,26 +69,31 @@ func TestActivate(test *testing.T) {
 
 	// Execute test cases
 	for _, tc := range tests {
-		tc := tc
-		test.Run(tc.name, func(t *testing.T) {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			repo := new(lics.MockLicenseRepository)
 
 			// Setup the expected calls and return values
 			if tc.mockLicense != nil {
-				repo.On("Get", *tc.mockLicense).Return(tc.mockLicense, nil)
+				repo.On("Get", mock.Anything).Return(tc.mockLicense, nil)
 			} else {
 				// Return nil license and an error for the "not found" scenario
-				repo.On("Get", mock.Anything).Return(nil, errors.New("license not found"))
+				repo.On("Get", mock.Anything).Return((*lics.License)(nil), errors.New("license not found"))
 			}
 
 			err := core.Activate(repo, tc.licenseKey)
 
+			// Check the error against the expected error
 			if tc.expectedErr != nil {
-				assert.NotNil(test, err)
+				assert.NotNil(t, err)
+				assert.Equal(t, tc.expectedErr.Error(), err.Error())
 			} else {
-				assert.NoError(test, err)
+				assert.NoError(t, err)
 			}
 
+			repo.AssertExpectations(t) // Assert that expectations were met
 		})
 	}
 }

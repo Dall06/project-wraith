@@ -16,7 +16,12 @@ func Activate(repo lics.LicenseRepository, licenseKey string) error {
 		return err
 	}
 
-	if !result.IsActive && result.ExpiryDate.After(time.Now()) {
+	// Check if result is nil
+	if result == nil {
+		return errors.New("license not found")
+	}
+
+	if !result.IsActive || result.ExpiryDate.Before(time.Now()) {
 		return errors.New("license is either inactive or expired")
 	}
 

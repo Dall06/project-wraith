@@ -120,6 +120,7 @@ func TestUserRule(test *testing.T) {
 			case "Login":
 				mockRepo.On("Get", mock.Anything).Return(tc.repoReturn, tc.repoErr)
 			case "Register":
+				mockRepo.On("Duplicated", mock.Anything).Return([]domain.User{}, tc.repoErr)
 				mockRepo.On("Create", mock.Anything).Return(tc.repoErr)
 			case "Edit":
 				mockRepo.On("Update", mock.Anything).Return(tc.repoErr)

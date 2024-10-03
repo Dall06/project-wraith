@@ -35,7 +35,7 @@ func NewLogger(projectPath string) Logger {
 	}
 }
 
-func (l *logger) Initialize() error {
+func (l logger) Initialize() error {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.MessageKey = "message"
@@ -73,25 +73,25 @@ func (l *logger) Initialize() error {
 	return nil
 }
 
-func (l *logger) Warn(message string, args ...interface{}) {
+func (l logger) Warn(message string, args ...interface{}) {
 	formattedMessage := fmt.Sprintf(strings.ToLower(message), args...)
 	callerInfo := tools.ExtractCallerInfo(consts.LoggerCallerLevel)
 	l.loggers[zapcore.WarnLevel].Warnw(formattedMessage, "caller", callerInfo)
 }
 
-func (l *logger) Info(message string, args ...interface{}) {
+func (l logger) Info(message string, args ...interface{}) {
 	formattedMessage := fmt.Sprintf(strings.ToLower(message), args...)
 	callerInfo := tools.ExtractCallerInfo(consts.LoggerCallerLevel)
 	l.loggers[zapcore.InfoLevel].Infow(formattedMessage, "caller", callerInfo)
 }
 
-func (l *logger) Error(message string, args ...interface{}) {
+func (l logger) Error(message string, args ...interface{}) {
 	formattedMessage := fmt.Sprintf(strings.ToLower(message), args...)
 	callerInfo := tools.ExtractCallerInfo(consts.LoggerCallerLevel)
 	l.loggers[zapcore.ErrorLevel].Errorw(formattedMessage, "caller", callerInfo)
 }
 
-func (l *logger) getLogFilePath(level string) (string, error) {
+func (l logger) getLogFilePath(level string) (string, error) {
 	if err := os.MkdirAll(l.projectPath, os.ModePerm); err != nil {
 		return "", fmt.Errorf("failed to create logs directory %e", err)
 	}

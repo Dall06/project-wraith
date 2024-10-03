@@ -8,6 +8,11 @@ type MockUserRepository struct {
 	mock.Mock
 }
 
+func (m *MockUserRepository) Duplicated(user User) ([]User, error) {
+	args := m.Called(user)
+	return args.Get(0).([]User), args.Error(1)
+}
+
 func (m *MockUserRepository) Get(user User) (*User, error) {
 	args := m.Called(user)
 	return args.Get(0).(*User), args.Error(1)
