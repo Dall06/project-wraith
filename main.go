@@ -6,10 +6,11 @@ import (
 	"project-wraith/pkg/core"
 	"project-wraith/pkg/modules/logger"
 	"project-wraith/pkg/modules/tools"
+	"project-wraith/pkg/secrets"
 )
 
 // @title project-wraith
-// @description Golang REST Api for user interaction
+// @description REST Api for user interaction
 func main() {
 	manifestPath := tools.BuildPath(consts.ManifestName, consts.ManifestExt, consts.ManifestPath)
 	err := consts.ReadManifest(manifestPath)
@@ -22,13 +23,18 @@ func main() {
 		panic(err)
 	}
 
-	log := logger.NewLogger(cfg.Logger.FolderPath)
+	sct, err := secrets.Load()
+	if err != nil {
+		panic(err)
+	}
+
+	log := logger.NewLogger(cfg.Logger.FolderPath, sct.Encryption.Logs, sct.Secrets.Logs)
 	err = log.Initialize()
 	if err != nil {
 		panic(err)
 	}
 
-	err = core.Start(cfg, log)
+	err = core.Start(cfg, sct, log)
 	if err != nil {
 		panic(err)
 	}

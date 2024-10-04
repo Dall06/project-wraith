@@ -10,7 +10,10 @@ docs/*.yml
 
 manifest.yaml
 
+config.env
+config.ini
 config.yaml
+
 logs/*.log
 
 .DS_Store
