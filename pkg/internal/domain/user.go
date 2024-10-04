@@ -90,6 +90,9 @@ func (r *userRepository) Update(user User) error {
 	if !user.UpdatedAt.IsZero() {
 		toUpdate["updatedAt"] = user.UpdatedAt
 	}
+	if user.Status != "" {
+		toUpdate["status"] = user.Status
+	}
 	if user.Password != "" {
 		toUpdate["password"] = user.Password
 	}

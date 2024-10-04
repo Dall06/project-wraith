@@ -12,6 +12,8 @@ func TestLogger(t *testing.T) {
 	tests := []struct {
 		name            string
 		projectPath     string
+		encrypt         bool
+		encryptKey      string
 		setupFileSystem bool
 		expectedError   error
 	}{
@@ -36,7 +38,7 @@ func TestLogger(t *testing.T) {
 				}(tt.projectPath)
 			}
 
-			l := NewLogger(tt.projectPath)
+			l := NewLogger(tt.projectPath, tt.encrypt, tt.encryptKey)
 			err := l.Initialize()
 
 			if tt.expectedError != nil {

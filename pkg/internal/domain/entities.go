@@ -11,5 +11,6 @@ type User struct {
 	Password  string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Status    string
 	Meta      map[string]interface{}
 }

@@ -1,5 +1,7 @@
 package config
 
+import "github.com/spf13/viper"
+
 type Config struct {
 	Server struct {
 		Host               string
@@ -19,38 +21,30 @@ type Config struct {
 	Logger struct {
 		Debug      bool
 		FolderPath string
+		Upload     bool
 	}
 	Options struct {
 		EncryptResponse bool
 		EncryptDbData   bool
 	}
-	Secrets struct {
-		Jwt       string
-		DbData    string
-		Response  string
-		Password  string
-		Cookies   string
-		Internals string
-	}
-	Sms struct {
-		ResetAsset string
-		From       string
-		AccountSID string
-		AuthToken  string
-	}
-	Mail struct {
-		From     string
-		Password string
-		Host     string
-		Port     string
-	}
 	Redirects struct {
 		ResetUrl string
 	}
-	Notifiers struct {
-		Bot struct {
-			Token string
-			Chat  string
-		}
+}
+
+func Load(fileName, extension, folderPath string) (*Config, error) {
+	viper.SetConfigName(fileName)
+	viper.SetConfigType(extension)
+	viper.AddConfigPath(folderPath)
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
 	}
+
+	var config Config
+	if err := viper.Unmarshal(&config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
 }

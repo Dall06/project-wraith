@@ -20,9 +20,10 @@ import (
 	"project-wraith/pkg/modules/mail"
 	"project-wraith/pkg/modules/sms"
 	"project-wraith/pkg/modules/tools"
+	"project-wraith/pkg/secrets"
 )
 
-func Start(cfg *config.Config, log logger.Logger) error {
+func Start(cfg *config.Config, sct *secrets.Secrets, log logger.Logger) error {
 	dbClient := db.NewClient(cfg.Database.Uri, cfg.Database.Name)
 	err := dbClient.Open()
 	if err != nil {
@@ -42,21 +43,21 @@ func Start(cfg *config.Config, log logger.Logger) error {
 		}
 	}
 
-	resetSmsAsset, err := tools.ReadAsset(cfg.Sms.ResetAsset)
+	resetSmsAsset, err := tools.ReadAsset(sct.Sms.ResetAsset)
 	if err != nil {
 		log.Error("Failed to read sms reset asset", err)
 		return err
 	}
 
 	mailer := mail.NewMail(
-		cfg.Mail.From,
-		cfg.Mail.Password,
-		cfg.Mail.Host,
-		cfg.Mail.Port)
+		sct.Mail.From,
+		sct.Mail.Password,
+		sct.Mail.Host,
+		sct.Mail.Port)
 	smsResetSender := sms.NewTwilio(
-		cfg.Sms.From,
-		cfg.Sms.AccountSID,
-		cfg.Sms.AuthToken,
+		sct.Sms.From,
+		sct.Sms.AccountSID,
+		sct.Sms.AuthToken,
 		resetSmsAsset,
 	)
 
@@ -66,27 +67,27 @@ func Start(cfg *config.Config, log logger.Logger) error {
 	userRepo := domain.NewUserRepository(*userCollection, userCtx)
 
 	userRule := rules.NewUserRule(
-		userRepo, cfg.Options.EncryptDbData, cfg.Secrets.DbData, cfg.Secrets.Password)
+		userRepo, cfg.Options.EncryptDbData, sct.Secrets.DbData, sct.Secrets.Password)
 	userCtrl := gateway.NewUserController(
 		log,
 		userRule,
-		cfg.Secrets.Jwt,
+		sct.Secrets.Jwt,
 		cfg.Options.EncryptResponse,
-		cfg.Secrets.Response,
+		sct.Secrets.Response,
 		cfg.Server.CookiesMinutesLife)
 
 	authCtrl := gateway.NewAuthController(
 		log,
 		userRule,
-		cfg.Secrets.Jwt,
+		sct.Secrets.Jwt,
 		cfg.Server.CookiesMinutesLife)
 
-	resetRule := rules.NewResetRule(userRepo, cfg.Secrets.Jwt)
+	resetRule := rules.NewResetRule(userRepo, sct.Secrets.Jwt)
 	resetCtrl := gateway.NewResetController(
 		log,
 		resetRule,
 		userRule,
-		cfg.Secrets.Jwt,
+		sct.Secrets.Jwt,
 		cfg.Server.CookiesMinutesLife,
 		mailer,
 		smsResetSender,
@@ -99,7 +100,7 @@ func Start(cfg *config.Config, log logger.Logger) error {
 	manticore := guard.NewManticore(
 		*internalsCollection,
 		internalsCtx,
-		cfg.Secrets.Internals)
+		sct.Secrets.Internals)
 
 	staticsCtrl := gateway.NewStaticsController(log, consts.AppManifest.Version, cfg.Logger.FolderPath, cfg.Server.BasePath)
 	serverApiKey := apikey.CrateApiKey(cfg.Server.KeyWord)
@@ -128,7 +129,7 @@ func Start(cfg *config.Config, log logger.Logger) error {
 	}
 
 	Middleware(
-		fiberApp, log, paths, serverApiKey, cfg.Secrets.Jwt, cfg.Secrets.Cookies, manticore)
+		fiberApp, log, paths, serverApiKey, sct.Secrets.Jwt, sct.Secrets.Cookies, manticore)
 	EnRoute(fiberApp, paths, userCtrl, authCtrl, resetCtrl, staticsCtrl)
 
 	go func() {

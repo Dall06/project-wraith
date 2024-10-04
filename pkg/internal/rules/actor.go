@@ -7,6 +7,7 @@ type User struct {
 	Name     string
 	Phone    string
 	Password string
+	status   string
 }
 
 type Reset struct {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"project-wraith/pkg/consts"
+	"project-wraith/pkg/modules/alchemy"
 	"project-wraith/pkg/modules/tools"
 	"strings"
 
@@ -25,13 +26,17 @@ var _ Logger = (*logger)(nil)
 type logger struct {
 	loggers     map[zapcore.Level]*zap.SugaredLogger
 	projectPath string
+	encrypt     bool
+	encryptKey  string
 }
 
 // NewLogger is a function constructor for Logger
-func NewLogger(projectPath string) Logger {
+func NewLogger(projectPath string, encrypt bool, encryptKey string) Logger {
 	return &logger{
 		loggers:     make(map[zapcore.Level]*zap.SugaredLogger),
 		projectPath: projectPath,
+		encrypt:     encrypt,
+		encryptKey:  encryptKey,
 	}
 }
 
@@ -88,6 +93,18 @@ func (l logger) Info(message string, args ...interface{}) {
 func (l logger) Error(message string, args ...interface{}) {
 	formattedMessage := fmt.Sprintf(strings.ToLower(message), args...)
 	callerInfo := tools.ExtractCallerInfo(consts.LoggerCallerLevel)
+
+	if l.encrypt {
+		formattedMessage, err := alchemy.Encrypt(l.encryptKey, formattedMessage)
+		if err != nil {
+			l.loggers[zapcore.ErrorLevel].Errorw(formattedMessage, "caller", callerInfo)
+		}
+		callerInfo, err = alchemy.Encrypt(l.encryptKey, callerInfo)
+		if err != nil {
+			l.loggers[zapcore.ErrorLevel].Errorw(formattedMessage, "caller", callerInfo)
+		}
+	}
+
 	l.loggers[zapcore.ErrorLevel].Errorw(formattedMessage, "caller", callerInfo)
 }
 

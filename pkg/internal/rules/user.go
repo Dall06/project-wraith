@@ -4,6 +4,7 @@ import (
 	"errors"
 	"project-wraith/pkg/internal/domain"
 	"project-wraith/pkg/modules/alchemy"
+	"project-wraith/pkg/modules/status"
 	"project-wraith/pkg/modules/tools"
 	"time"
 )
@@ -73,6 +74,14 @@ func (r userRule) Login(model User) (*User, error) {
 		return nil, errors.New("password incorrect")
 	}
 
+	if response.Status == status.New {
+		toUpdate := domain.User{ID: response.ID, Status: status.Active}
+		err := r.repo.Update(toUpdate)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	result := &User{
 		ID:       response.ID,
 		Username: response.Username,
@@ -80,6 +89,7 @@ func (r userRule) Login(model User) (*User, error) {
 		Name:     response.Name,
 		Phone:    response.Phone,
 		Password: response.Password,
+		status:   response.Status,
 	}
 
 	return result, nil
