@@ -20,59 +20,78 @@ import (
 	"project-wraith/pkg/modules/mail"
 	"project-wraith/pkg/modules/sms"
 	"project-wraith/pkg/modules/tools"
-	"project-wraith/pkg/secrets"
 )
 
-func Start(cfg *config.Config, sct *secrets.Secrets, log logger.Logger) error {
-	dbClient := db.NewClient(cfg.Database.Uri, cfg.Database.Name)
-	err := dbClient.Open()
+func Start(cfg *config.Setup, sct *config.Secrets, ini *config.Init, log logger.Logger) error {
+	userDbClient := db.NewClient(ini.Database.User.Uri, ini.Database.User.Name)
+	err := userDbClient.Open()
 	if err != nil {
 		log.Error("failed to open db client", err)
 		return err
 	}
 
-	if consts.LicenseCheck {
-		licensesCollection := dbClient.Collection(consts.LicensesCollection)
-		licensesCtx := dbClient.Ctx()
+	licenseDbClient := db.NewClient(ini.Database.License.Uri, ini.Database.License.Name)
+	err = licenseDbClient.Open()
+	if err != nil {
+		log.Error("failed to open db client", err)
+		return err
+	}
+
+	managerDbClient := db.NewClient(ini.Database.Manager.Uri, ini.Database.Manager.Name)
+	err = managerDbClient.Open()
+	if err != nil {
+		log.Error("failed to open db client", err)
+		return err
+	}
+
+	if ini.Options.UseLicense {
+		licString, err := config.LoadLicense(consts.LicFileName, consts.LicExtension, consts.LicPath)
+		if err != nil {
+			log.Error("failed to load license", err)
+			return err
+		}
+
+		licensesCollection := licenseDbClient.Collection(consts.LicensesCollection)
+		licensesCtx := licenseDbClient.Ctx()
 
 		licensesRepo := lics.NewLicenseRepository(*licensesCollection, licensesCtx)
-		err = Activate(licensesRepo, cfg.Server.License)
+		err = Activate(licensesRepo, licString)
 		if err != nil {
 			log.Error("failed to activate license", err)
 			return err
 		}
 	}
 
-	resetSmsAsset, err := tools.ReadAsset(sct.Sms.ResetAsset)
+	resetSmsAsset, err := tools.ReadAsset(ini.Sms.ResetAsset)
 	if err != nil {
 		log.Error("Failed to read sms reset asset", err)
 		return err
 	}
 
 	mailer := mail.NewMail(
-		sct.Mail.From,
-		sct.Mail.Password,
-		sct.Mail.Host,
-		sct.Mail.Port)
+		ini.Mail.From,
+		ini.Mail.Password,
+		ini.Mail.Host,
+		ini.Mail.Port)
 	smsResetSender := sms.NewTwilio(
-		sct.Sms.From,
-		sct.Sms.AccountSID,
-		sct.Sms.AuthToken,
+		ini.Sms.From,
+		ini.Sms.AccountSID,
+		ini.Sms.AuthToken,
 		resetSmsAsset,
 	)
 
-	userCollection := dbClient.Collection(consts.UsersCollection)
-	userCtx := dbClient.Ctx()
+	userCollection := userDbClient.Collection(consts.UsersCollection)
+	userCtx := userDbClient.Ctx()
 
 	userRepo := domain.NewUserRepository(*userCollection, userCtx)
 
 	userRule := rules.NewUserRule(
-		userRepo, cfg.Options.EncryptDbData, sct.Secrets.DbData, sct.Secrets.Password)
+		userRepo, ini.Options.EncryptDbData, sct.Secrets.DbData, sct.Secrets.Password)
 	userCtrl := gateway.NewUserController(
 		log,
 		userRule,
 		sct.Secrets.Jwt,
-		cfg.Options.EncryptResponse,
+		ini.Options.EncryptResponse,
 		sct.Secrets.Response,
 		cfg.Server.CookiesMinutesLife)
 
@@ -94,8 +113,8 @@ func Start(cfg *config.Config, sct *secrets.Secrets, log logger.Logger) error {
 		cfg.Redirects.ResetUrl,
 	)
 
-	internalsCollection := dbClient.Collection(consts.InternalsCollection)
-	internalsCtx := dbClient.Ctx()
+	internalsCollection := managerDbClient.Collection(consts.InternalsCollection)
+	internalsCtx := managerDbClient.Ctx()
 
 	manticore := guard.NewManticore(
 		*internalsCollection,
@@ -103,15 +122,15 @@ func Start(cfg *config.Config, sct *secrets.Secrets, log logger.Logger) error {
 		sct.Secrets.Internals)
 
 	staticsCtrl := gateway.NewStaticsController(log, consts.AppManifest.Version, cfg.Logger.FolderPath, cfg.Server.BasePath)
-	serverApiKey := apikey.CrateApiKey(cfg.Server.KeyWord)
+	serverApiKey := apikey.CrateApiKey(sct.Server.KeyWord)
 
 	engine := html.New("./public/views", ".html")
 
-	serverName := fmt.Sprintf("%s@%s", cfg.Server.Name, consts.AppManifest.Version)
+	serverName := fmt.Sprintf("%s@%s", consts.ServerName, consts.AppManifest.Version)
 	serverConfig := fiber.Config{
 		Prefork:       false,
 		CaseSensitive: true,
-		ServerHeader:  cfg.Server.Header,
+		ServerHeader:  consts.ServerHeader,
 		AppName:       serverName,
 		Views:         engine,
 		ErrorHandler:  link.Error,
@@ -162,11 +181,22 @@ func Start(cfg *config.Config, sct *secrets.Secrets, log logger.Logger) error {
 
 	log.Info("shutting down server...")
 
-	err = dbClient.Close()
+	err = userDbClient.Close()
 	if err != nil {
 		log.Error("failed to close db client", err)
 		return err
 	}
+	err = managerDbClient.Close()
+	if err != nil {
+		log.Error("failed to close db client", err)
+		return err
+	}
+	err = licenseDbClient.Close()
+	if err != nil {
+		log.Error("failed to close db client", err)
+		return err
+	}
+
 	log.Info("successfully closed db client!")
 
 	err = fiberApp.Shutdown()

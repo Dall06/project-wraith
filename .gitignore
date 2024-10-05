@@ -10,6 +10,7 @@ docs/*.yml
 
 manifest.yaml
 
+config.lic
 config.env
 config.ini
 config.yaml
