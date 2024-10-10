@@ -14,10 +14,11 @@ type StaticsController interface {
 }
 
 type staticsController struct {
-	log      logger.Logger
-	logsPath string
-	basePath string
-	version  string
+	log         logger.Logger
+	logsPath    string
+	basePath    string
+	version     string
+	encryptLogs bool
 }
 
 func NewStaticsController(log logger.Logger, version, logsPath, basePath string) StaticsController {

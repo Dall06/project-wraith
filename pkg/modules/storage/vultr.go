@@ -12,7 +12,7 @@ import (
 	"path"
 )
 
-func ObjectStorage(accessKey, secretKey string) *s3.S3 {
+func NewObjectStorage(accessKey, secretKey string) *s3.S3 {
 	storage := s3.New(session.Must(session.NewSession(&aws.Config{
 		Region:      aws.String("ewr"),
 		Credentials: credentials.NewStaticCredentials(accessKey, secretKey, ""),

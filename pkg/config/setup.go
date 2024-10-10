@@ -6,7 +6,6 @@ type Setup struct {
 	Server struct {
 		Host               string
 		Port               int
-		Env                string
 		BasePath           string
 		CookiesMinutesLife int
 	}

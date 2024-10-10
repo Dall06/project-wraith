@@ -2,48 +2,57 @@ package config
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
+	"github.com/joho/godotenv"
+	"os"
+	"path/filepath"
 )
 
 type Secrets struct {
 	Server struct {
-		KeyWord string `mapstructure:"SERVER_KEY_WORD"`
+		KeyWord string
 	}
-	Secrets struct {
-		Jwt       string `mapstructure:"SECRET_JWT"`
-		DbData    string `mapstructure:"SECRET_DB"`
-		Response  string `mapstructure:"SECRET_RESPONSE"`
-		Password  string `mapstructure:"SECRET_PASSWORD"`
-		Cookies   string `mapstructure:"SECRET_COOKIES"`
-		Internals string `mapstructure:"SECRET_INTERNALS"`
-		Logs      string `mapstructure:"SECRET_LOGS"`
+	Keys struct {
+		Jwt       string
+		DbData    string
+		Response  string
+		Password  string
+		Cookies   string
+		Internals string
+		Logs      string
+	}
+	Storage struct {
+		AccessKey string
+		SecretKey string
 	}
 	Notifiers struct {
 		Bot struct {
-			Token string `mapstructure:"NOTIFIER_TLG_BOT_TOKEN"`
-			Chat  string `mapstructure:"NOTIFIER_TLG_BOT_CHAT"`
+			Token string
+			Chat  string
 		}
 	}
 }
 
 func LoadSecrets(fileName, extension, folderPath string) (*Secrets, error) {
-	snake := viper.New()
-	snake.SetConfigName(fileName)
-	snake.SetConfigType(extension)
-	snake.AddConfigPath(folderPath)
+	fileNameWithExt := fmt.Sprintf("%s.%s", fileName, extension)
+	filePath := filepath.Join(folderPath, fileNameWithExt)
 
-	err := snake.ReadInConfig()
+	err := godotenv.Load(filePath)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("Warning: Could not load %s: %s. Falling back to system environment variables.\n", filePath, err)
 	}
-
-	snake.AutomaticEnv()
 
 	var secrets Secrets
-	err = snake.Unmarshal(&secrets)
-	if err != nil {
-		return nil, err
-	}
+
+	secrets.Server.KeyWord = os.Getenv("SERVER_KEY_WORD")
+	secrets.Keys.Jwt = os.Getenv("SECRET_JWT")
+	secrets.Keys.DbData = os.Getenv("SECRET_DB")
+	secrets.Keys.Response = os.Getenv("SECRET_RESPONSE")
+	secrets.Keys.Password = os.Getenv("SECRET_PASSWORD")
+	secrets.Keys.Cookies = os.Getenv("SECRET_COOKIES")
+	secrets.Keys.Internals = os.Getenv("SECRET_INTERNALS")
+	secrets.Keys.Logs = os.Getenv("SECRET_LOGS")
+	secrets.Notifiers.Bot.Token = os.Getenv("NOTIFIER_TLG_BOT_TOKEN")
+	secrets.Notifiers.Bot.Chat = os.Getenv("NOTIFIER_TLG_BOT_CHAT")
 
 	return &secrets, nil
 }

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
-	"os"
-	"os/signal"
 	"project-wraith/pkg/config"
 	"project-wraith/pkg/consts"
 	"project-wraith/pkg/internal/domain"
@@ -19,6 +17,7 @@ import (
 	"project-wraith/pkg/modules/logger"
 	"project-wraith/pkg/modules/mail"
 	"project-wraith/pkg/modules/sms"
+	"project-wraith/pkg/modules/storage"
 	"project-wraith/pkg/modules/tools"
 )
 
@@ -86,27 +85,27 @@ func Start(cfg *config.Setup, sct *config.Secrets, ini *config.Init, log logger.
 	userRepo := domain.NewUserRepository(*userCollection, userCtx)
 
 	userRule := rules.NewUserRule(
-		userRepo, ini.Options.EncryptDbData, sct.Secrets.DbData, sct.Secrets.Password)
+		userRepo, ini.Options.EncryptDbData, sct.Keys.DbData, sct.Keys.Password)
 	userCtrl := gateway.NewUserController(
 		log,
 		userRule,
-		sct.Secrets.Jwt,
+		sct.Keys.Jwt,
 		ini.Options.EncryptResponse,
-		sct.Secrets.Response,
+		sct.Keys.Response,
 		cfg.Server.CookiesMinutesLife)
 
 	authCtrl := gateway.NewAuthController(
 		log,
 		userRule,
-		sct.Secrets.Jwt,
+		sct.Keys.Jwt,
 		cfg.Server.CookiesMinutesLife)
 
-	resetRule := rules.NewResetRule(userRepo, sct.Secrets.Jwt)
+	resetRule := rules.NewResetRule(userRepo, sct.Keys.Jwt)
 	resetCtrl := gateway.NewResetController(
 		log,
 		resetRule,
 		userRule,
-		sct.Secrets.Jwt,
+		sct.Keys.Jwt,
 		cfg.Server.CookiesMinutesLife,
 		mailer,
 		smsResetSender,
@@ -119,7 +118,7 @@ func Start(cfg *config.Setup, sct *config.Secrets, ini *config.Init, log logger.
 	manticore := guard.NewManticore(
 		*internalsCollection,
 		internalsCtx,
-		sct.Secrets.Internals)
+		sct.Keys.Internals)
 
 	staticsCtrl := gateway.NewStaticsController(log, consts.AppManifest.Version, cfg.Logger.FolderPath, cfg.Server.BasePath)
 	serverApiKey := apikey.CrateApiKey(sct.Server.KeyWord)
@@ -148,17 +147,15 @@ func Start(cfg *config.Setup, sct *config.Secrets, ini *config.Init, log logger.
 	}
 
 	Middleware(
-		fiberApp, log, paths, serverApiKey, sct.Secrets.Jwt, sct.Secrets.Cookies, manticore)
+		fiberApp, log, paths, serverApiKey, sct.Keys.Jwt, sct.Keys.Cookies, manticore)
 	EnRoute(fiberApp, paths, userCtrl, authCtrl, resetCtrl, staticsCtrl)
 
-	go func() {
-		listenOn := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-		err := fiberApp.Listen(listenOn)
-		if err != nil {
-			log.Error("failed to start server", err)
-			os.Exit(1)
-		}
-	}()
+	listenOn := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	err = fiberApp.Listen(listenOn)
+	if err != nil {
+		log.Error("failed to start server", err)
+		return err
+	}
 
 	startLog := fmt.Sprintf(
 		"Running API server on %s:%d with base path %s",
@@ -174,10 +171,6 @@ func Start(cfg *config.Setup, sct *config.Secrets, ini *config.Init, log logger.
 		cfg.Server.Host, cfg.Server.Port, cfg.Server.BasePath, // For /metrics
 		cfg.Server.Host, cfg.Server.Port, cfg.Server.BasePath, // For /log
 	)
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
 
 	log.Info("shutting down server...")
 
@@ -205,6 +198,60 @@ func Start(cfg *config.Setup, sct *config.Secrets, ini *config.Init, log logger.
 		return err
 	}
 
-	log.Info("successfully shutdown!")
+	log.Info("successfully shutdown server!")
+
+	return nil
+}
+
+func Teardown(cfg *config.Setup, sct *config.Secrets, ini *config.Init) error {
+	objectStorage := storage.NewObjectStorage(
+		sct.Storage.AccessKey,
+		sct.Storage.SecretKey,
+	)
+
+	type uploadInfo struct {
+		bucket     string
+		directory  string
+		filename   string
+		permission string
+		encrypt    bool
+		encryptKey string
+	}
+
+	var toUpload []uploadInfo
+
+	if ini.Options.UploadLogs {
+		logFiles := []string{"info.log", "warn.log", "error.log"}
+
+		for _, logFile := range logFiles {
+			directory := ""
+			if logFile == "info.log" {
+				directory = fmt.Sprintf("%s/%s", cfg.Logger.FolderPath)
+			}
+
+			toUpload = append(toUpload, uploadInfo{
+				bucket:     ini.Storage.Bucket,
+				directory:  directory,
+				filename:   fmt.Sprintf("%s/%s", cfg.Logger.FolderPath, logFile),
+				permission: "public-read",
+				encrypt:    ini.Options.EncryptLogs,
+				encryptKey: sct.Keys.Logs,
+			})
+		}
+	}
+
+	for _, upload := range toUpload {
+		_, err := storage.UploadObject(
+			objectStorage,
+			upload.bucket,
+			upload.directory,
+			upload.filename,
+			upload.permission,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

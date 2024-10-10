@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"project-wraith/pkg/config"
 	"project-wraith/pkg/consts"
 	"project-wraith/pkg/core"
@@ -44,7 +45,7 @@ func main() {
 		panic(err)
 	}
 
-	log := logger.NewLogger(cfg.Logger.FolderPath, ini.Options.EncryptLogs, sct.Secrets.Logs)
+	log := logger.NewLogger(cfg.Logger.FolderPath)
 	err = log.Initialize()
 	if err != nil {
 		panic(err)
@@ -54,4 +55,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = core.Teardown(cfg, sct, ini)
+	if err != nil {
+		panic(err)
+	}
+
+	os.Exit(0)
 }

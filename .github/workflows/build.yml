@@ -45,6 +45,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          check-latest: true
+
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+
       - name: Generate Swagger docs
         run: swag init
 
