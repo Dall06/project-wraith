@@ -213,6 +213,7 @@ func Teardown(cfg *config.Setup, sct *config.Secrets, ini *config.Init) error {
 		bucket     string
 		directory  string
 		filename   string
+		localPath  string
 		permission string
 		encrypt    bool
 		encryptKey string
@@ -224,15 +225,13 @@ func Teardown(cfg *config.Setup, sct *config.Secrets, ini *config.Init) error {
 		logFiles := []string{"info.log", "warn.log", "error.log"}
 
 		for _, logFile := range logFiles {
-			directory := ""
-			if logFile == "info.log" {
-				directory = fmt.Sprintf("%s/%s", cfg.Logger.FolderPath)
-			}
+			directory := fmt.Sprintf("%s/logs", ini.App.Level)
 
 			toUpload = append(toUpload, uploadInfo{
 				bucket:     ini.Storage.Bucket,
 				directory:  directory,
-				filename:   fmt.Sprintf("%s/%s", cfg.Logger.FolderPath, logFile),
+				filename:   logFile,
+				localPath:  fmt.Sprintf("%s/%s", cfg.Logger.FolderPath, logFile),
 				permission: "public-read",
 				encrypt:    ini.Options.EncryptLogs,
 				encryptKey: sct.Keys.Logs,
@@ -247,6 +246,7 @@ func Teardown(cfg *config.Setup, sct *config.Secrets, ini *config.Init) error {
 			upload.directory,
 			upload.filename,
 			upload.permission,
+			upload.localPath,
 		)
 		if err != nil {
 			return err

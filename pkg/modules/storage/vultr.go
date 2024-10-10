@@ -22,8 +22,8 @@ func NewObjectStorage(accessKey, secretKey string) *s3.S3 {
 	return storage
 }
 
-func UploadObject(storage *s3.S3, bucket, directory, filename, permission string) (*s3.PutObjectOutput, error) {
-	file, err := os.Open(filename)
+func UploadObject(storage *s3.S3, bucket, directory, filename, permission, localPath string) (*s3.PutObjectOutput, error) {
+	file, err := os.Open(localPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}

@@ -38,7 +38,7 @@ func TestLogger(t *testing.T) {
 				}(tt.projectPath)
 			}
 
-			l := NewLogger(tt.projectPath, tt.encrypt, tt.encryptKey)
+			l := NewLogger(tt.projectPath)
 			err := l.Initialize()
 
 			if tt.expectedError != nil {
