@@ -38,7 +38,7 @@ func LoadSecrets(fileName, extension, folderPath string) (*Secrets, error) {
 
 	err := godotenv.Load(filePath)
 	if err != nil {
-		fmt.Printf("Warning: Could not load %s: %s. Falling back to system environment variables.\n", filePath, err)
+		fmt.Printf("could not load env file, falling back to system environment variables... %v\n", err)
 	}
 
 	var secrets Secrets
