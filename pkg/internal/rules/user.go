@@ -14,7 +14,7 @@ type UserRule interface {
 	Register(model User) (*User, error)
 	Edit(model User) error
 	Get(model User) (*User, error)
-	Remove(model User) error
+	Disable(model User) error
 }
 
 type userRule struct {
@@ -74,7 +74,7 @@ func (r userRule) Login(model User) (*User, error) {
 		return nil, errors.New("password incorrect")
 	}
 
-	if response.Status == status.New {
+	if response.Status != status.Locked && response.Status != status.Active {
 		toUpdate := domain.User{ID: response.ID, Status: status.Active}
 		err := r.repo.Update(toUpdate)
 		if err != nil {
@@ -200,7 +200,7 @@ func (r userRule) Get(model User) (*User, error) {
 	return result, nil
 }
 
-func (r userRule) Remove(model User) error {
+func (r userRule) Disable(model User) error {
 	entity := domain.User{
 		ID:       model.ID,
 		Username: model.Username,
@@ -236,7 +236,8 @@ func (r userRule) Remove(model User) error {
 		return errors.New("password incorrect")
 	}
 
-	err = r.repo.Delete(entity.ID)
+	toUpdate := domain.User{ID: response.ID, Status: status.Disabled}
+	err = r.repo.Update(toUpdate)
 	if err != nil {
 		return err
 	}

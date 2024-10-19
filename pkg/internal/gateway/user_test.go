@@ -89,7 +89,7 @@ func TestUserController(test *testing.T) {
 			},
 		},
 		{
-			name:   "Test Remove User - Successful",
+			name:   "Test Disable User - Successful",
 			method: "DELETE",
 			url:    "/user/remove",
 			request: rules.User{
@@ -100,7 +100,7 @@ func TestUserController(test *testing.T) {
 				"message": "remove successful",
 			},
 			setupMocks: func() {
-				userMock.On("Remove", mock.Anything).Return(nil).Once()
+				userMock.On("Disable", mock.Anything).Return(nil).Once()
 			},
 		},
 	}
@@ -122,7 +122,7 @@ func TestUserController(test *testing.T) {
 			case "PUT":
 				app.Put(testCase.url, controller.Edit)
 			case "DELETE":
-				app.Delete(testCase.url, controller.Remove)
+				app.Delete(testCase.url, controller.Disable)
 			}
 
 			// Create the request payload

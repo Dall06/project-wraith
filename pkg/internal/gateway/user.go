@@ -13,7 +13,7 @@ type UserController interface {
 	Register(ctx *fiber.Ctx) error
 	Get(ctx *fiber.Ctx) error
 	Edit(ctx *fiber.Ctx) error
-	Remove(ctx *fiber.Ctx) error
+	Disable(ctx *fiber.Ctx) error
 }
 
 type userController struct {
@@ -193,8 +193,8 @@ func (uc userController) Edit(ctx *fiber.Ctx) error {
 	})
 }
 
-// Remove
-// @Summary Remove user
+// Disable
+// @Summary Disable user
 // @Description Deletes a user based on the provided details.
 // @Tags User
 // @Accept json
@@ -204,7 +204,7 @@ func (uc userController) Edit(ctx *fiber.Ctx) error {
 // @Success 200 {object} map[string]string "User removed successfully"
 // @Failure 400 {object} error "Failed to parse request or removal error"
 // @Security ApiKeyAuth
-func (uc userController) Remove(ctx *fiber.Ctx) error {
+func (uc userController) Disable(ctx *fiber.Ctx) error {
 	req := User{}
 	if err := ctx.BodyParser(&req); err != nil {
 		uc.log.Error("failed to parse request: %v", err)
@@ -222,7 +222,7 @@ func (uc userController) Remove(ctx *fiber.Ctx) error {
 		Password: req.Password,
 	}
 
-	err := uc.rules.Remove(actor)
+	err := uc.rules.Disable(actor)
 	if err != nil {
 		uc.log.Error("failed to remove user: %v", err)
 		return ctx.Status(fiber.StatusBadRequest).JSON(link.Response{

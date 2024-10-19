@@ -91,7 +91,7 @@ func TestUserRule(test *testing.T) {
 		},
 
 		{
-			name: "Remove Success",
+			name: "Disable Success",
 			input: rules.User{
 				ID:       "123",
 				Password: "password",
@@ -104,7 +104,7 @@ func TestUserRule(test *testing.T) {
 			encryptData:    false,
 			expectedResult: nil,
 			expectedError:  nil,
-			method:         "Remove",
+			method:         "Disable",
 		},
 	}
 
@@ -118,6 +118,7 @@ func TestUserRule(test *testing.T) {
 			// Set up mock behavior
 			switch tc.method {
 			case "Login":
+				mockRepo.On("Update", mock.Anything).Return(tc.repoErr)
 				mockRepo.On("Get", mock.Anything).Return(tc.repoReturn, tc.repoErr)
 			case "Register":
 				mockRepo.On("Duplicated", mock.Anything).Return([]domain.User{}, tc.repoErr)
@@ -126,9 +127,9 @@ func TestUserRule(test *testing.T) {
 				mockRepo.On("Update", mock.Anything).Return(tc.repoErr)
 			case "Get":
 				mockRepo.On("Get", mock.Anything).Return(tc.repoReturn, tc.repoErr)
-			case "Remove":
+			case "Disable":
 				mockRepo.On("Get", mock.Anything).Return(tc.repoReturn, tc.repoErr)
-				mockRepo.On("Delete", mock.Anything).Return(tc.repoErr)
+				mockRepo.On("Update", mock.Anything).Return(tc.repoErr)
 			}
 
 			// Run the method under test
@@ -156,8 +157,8 @@ func TestUserRule(test *testing.T) {
 				// Move assertions outside the switch block
 				assert.Equal(t, tc.expectedResult, result)
 				assert.Equal(t, tc.expectedError, err)
-			case "Remove":
-				err = rule.Remove(tc.input)
+			case "Disable":
+				err = rule.Disable(tc.input)
 				// Move assertions outside the switch block
 				assert.Equal(t, tc.expectedResult, result)
 				assert.Equal(t, tc.expectedError, err)

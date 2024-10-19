@@ -37,7 +37,7 @@ func (m *MockUserRule) Get(model User) (*User, error) {
 	return nil, args.Error(1)
 }
 
-func (m *MockUserRule) Remove(model User) error {
+func (m *MockUserRule) Disable(model User) error {
 	args := m.Called(model)
 	return args.Error(0)
 }

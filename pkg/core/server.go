@@ -80,7 +80,7 @@ func EnRoute(
 			usersGroup.Post("/register", user.Register)
 			usersGroup.Get("/detail/:id", user.Get)
 			usersGroup.Put("/edit", user.Edit)
-			usersGroup.Delete("/remove", user.Remove)
+			usersGroup.Delete("/disable", user.Disable)
 		default:
 			continue
 		}

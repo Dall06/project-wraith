@@ -38,7 +38,7 @@ func (m *manticore) StingAndProwl(cred Credentials) error {
 	err := m.collection.FindOne(context.Background(), filter).Decode(&result)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return errors.New("license not found")
+			return errors.New("user not found")
 		}
 
 		return err
