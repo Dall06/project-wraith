@@ -241,8 +241,7 @@ func Teardown(cfg *config.Setup, sct *config.Secrets, ini *config.Init) error {
 	}
 
 	for _, upload := range toUpload {
-		_, err := storage.UploadObject(
-			objectStorage,
+		_, err := objectStorage.UploadObject(
 			upload.bucket,
 			upload.directory,
 			upload.filename,

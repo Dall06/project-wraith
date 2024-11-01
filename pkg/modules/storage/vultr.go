@@ -12,17 +12,26 @@ import (
 	"path"
 )
 
-func NewObjectStorage(accessKey, secretKey string) *s3.S3 {
-	storage := s3.New(session.Must(session.NewSession(&aws.Config{
+type Storage interface {
+	UploadObject(bucket, directory, filename, permission, localPath string) (*s3.PutObjectOutput, error)
+}
+
+// ObjectStorage struct for interacting with S3 or compatible storage
+type storageClient struct {
+	client *s3.S3
+}
+
+func NewObjectStorage(accessKey, secretKey string) Storage {
+	str := s3.New(session.Must(session.NewSession(&aws.Config{
 		Region:      aws.String("ewr"),
 		Credentials: credentials.NewStaticCredentials(accessKey, secretKey, ""),
 		Endpoint:    aws.String("https://ewr1.vultrobjects.com/"),
 	})))
 
-	return storage
+	return &storageClient{client: str}
 }
 
-func UploadObject(storage *s3.S3, bucket, directory, filename, permission, localPath string) (*s3.PutObjectOutput, error) {
+func (s *storageClient) UploadObject(bucket, directory, filename, permission, localPath string) (*s3.PutObjectOutput, error) {
 	file, err := os.Open(localPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
@@ -41,7 +50,7 @@ func UploadObject(storage *s3.S3, bucket, directory, filename, permission, local
 	objectKey := path.Join(directory, path.Base(filename))
 	log.Printf("Uploading Object: %s", filename)
 
-	output, err := storage.PutObject(&s3.PutObjectInput{
+	output, err := s.client.PutObject(&s3.PutObjectInput{
 		Body:        file,
 		Bucket:      aws.String(bucket),
 		Key:         aws.String(objectKey),
