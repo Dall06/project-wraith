@@ -41,6 +41,8 @@ func Middleware(
 			app.Use(path, ManticoreSight(manticore, log))
 		case "metrics":
 			app.Use(path, ManticoreSight(manticore, log))
+		case "swagger":
+			app.Use(path, ManticoreSight(manticore, log))
 		default:
 			continue
 		}

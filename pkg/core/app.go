@@ -121,6 +121,7 @@ func Start(cfg *config.Setup, sct *config.Secrets, ini *config.Init, log logger.
 		sct.Keys.Internals)
 
 	staticsCtrl := gateway.NewStaticsController(log, consts.AppManifest.Version, cfg.Logger.FolderPath, cfg.Server.BasePath)
+
 	serverApiKey := apikey.CrateApiKey(sct.Server.KeyWord)
 
 	engine := html.New("./public/views", ".html")
@@ -232,7 +233,7 @@ func Teardown(cfg *config.Setup, sct *config.Secrets, ini *config.Init) error {
 				directory:  directory,
 				filename:   logFile,
 				localPath:  fmt.Sprintf("%s/%s", cfg.Logger.FolderPath, logFile),
-				permission: "public-read",
+				permission: "read",
 				encrypt:    ini.Options.EncryptLogs,
 				encryptKey: sct.Keys.Logs,
 			})
