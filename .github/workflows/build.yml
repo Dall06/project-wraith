@@ -83,9 +83,7 @@ jobs:
           # Determine the environment based on the branch
           if [[ "${GITHUB_REF##*/}" == "main" ]]; then
             echo "${{ secrets.ENV_MAIN }}" > .env
-          elif [[ "${GITHUB_REF##*/}" == "staging" ]]; then
-            echo "${{ secrets.ENV_STAGING }}" > .env
-          else
+          elif [[ "${GITHUB_REF##*/}" == "dev" ]]; then
             echo "${{ secrets.ENV_DEV }}" > .env
           fi
 
@@ -115,5 +113,5 @@ jobs:
           file: ./docker/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:${{ github.sha }}_${{ github.ref == 'refs/heads/dev' && 'beta' || 'release' }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:${{ github.sha }}_latest
