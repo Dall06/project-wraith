@@ -114,3 +114,4 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:${{ github.sha }}_${{ github.ref == 'refs/heads/dev' && 'beta' || 'release' }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:${{ github.sha }}_${{ github.ref == 'refs/heads/dev' && 'beta' || 'release' }}_latest
