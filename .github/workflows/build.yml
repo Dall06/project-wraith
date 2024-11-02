@@ -78,11 +78,11 @@ jobs:
         run: |
           # Determine the environment based on the branch
           if [[ "${GITHUB_REF##*/}" == "main" ]]; then
-            echo ${{ secrets.ENV_MAIN }} > .env
+            echo "${{ secrets.ENV_MAIN }}" > .env
           elif [[ "${GITHUB_REF##*/}" == "staging" ]]; then
-            echo ${{ secrets.ENV_STAGING }} > .env
+            echo "${{ secrets.ENV_STAGING }}" > .env
           else
-            echo ${{ secrets.ENV_DEV }} > .env
+            echo "${{ secrets.ENV_DEV }}" > .env
           fi
       -
         name: Check the content
