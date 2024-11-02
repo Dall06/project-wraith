@@ -100,7 +100,7 @@ jobs:
 
   build-and-push:
     runs-on: ubuntu-latest
-    needs: [test, swagger, setup]
+    needs: [test, swagger, setup, dotenv]
     steps:
       - name: Download dotenv result
         uses: actions/download-artifact@v3
