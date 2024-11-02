@@ -78,22 +78,19 @@ jobs:
         run: |
           # Determine the environment based on the branch
           if [[ "${GITHUB_REF##*/}" == "main" ]]; then
-            SECRET_ENV="${{ secrets.ENV_MAIN }}"
+            echo ${{ secrets.ENV_MAIN }} > .env
           elif [[ "${GITHUB_REF##*/}" == "staging" ]]; then
-            SECRET_ENV="${{ secrets.ENV_STAGING }}"
+            echo ${{ secrets.ENV_STAGING }} > .env
           else
-            SECRET_ENV="${{ secrets.ENV_DEV }}"
+            echo ${{ secrets.ENV_DEV }} > .env
           fi
-          
-          # Write the secret directly to the .env file
-          echo "$SECRET_ENV" > .env
       -
         name: Check the content
         run: |
           cat .env
       -
         name: Upload dotenv result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dotenv
           path: .env
@@ -103,7 +100,7 @@ jobs:
     needs: [test, swagger, setup, dotenv]
     steps:
       - name: Download dotenv result
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dotenv
 
