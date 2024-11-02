@@ -3,10 +3,10 @@ name: Build and Push Image
 on:
   push:
     branches:
-      - 'main'
+      - main
   pull_request:
     branches:
-      - 'main'
+      - main
 
 jobs:
   setup:
@@ -21,24 +21,25 @@ jobs:
           go-version: '1.23'
           check-latest: true
 
-      - name: Mod Get
+      - name: Go Get Dependencies
         run: go get
 
   test:
     runs-on: ubuntu-latest
     needs: setup
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Build
+      - name: Build Project
         run: go build -v ./...
 
-      - name: Test
+      - name: Run Tests
         uses: robherley/go-test-action@v0
 
   swagger:
@@ -54,27 +55,26 @@ jobs:
           go-version: '1.23'
           check-latest: true
 
-      - name: Install swag
+      - name: Install Swag
         run: go install github.com/swaggo/swag/cmd/swag@latest
 
-      - name: Generate Swagger docs
+      - name: Generate Swagger Docs
         run: swag init
 
-      - name: Save Swagger docs as artifact
+      - name: Save Swagger Docs as Artifact
         uses: actions/upload-artifact@v3
         with:
           name: swagger-docs
           path: ./docs
 
-  dotenv:
+  build-and-push:
     runs-on: ubuntu-latest
+    needs: [test, swagger, setup]
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-      -
-        name: Generate dotenv for go
-        shell: bash
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate Environment Variables
         run: |
           # Determine the environment based on the branch
           if [[ "${GITHUB_REF##*/}" == "main" ]]; then
@@ -84,36 +84,18 @@ jobs:
           else
             echo "${{ secrets.ENV_DEV }}" > .env
           fi
-      -
-        name: Check the content
+
+      - name: Verify Environment Variables
         run: |
           cat .env
-      -
-        name: Upload dotenv result
-        uses: actions/upload-artifact@v4
-        with:
-          name: dotenv
-          path: .env
 
-  build-and-push:
-    runs-on: ubuntu-latest
-    needs: [test, swagger, setup, dotenv]
-    steps:
-      - name: Download dotenv result
-        uses: actions/download-artifact@v4
-        with:
-          name: dotenv
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Restore Swagger docs
+      - name: Restore Swagger Docs
         uses: actions/download-artifact@v3
         with:
           name: swagger-docs
           path: ./docs
 
-      - name: Login to Docker registry
+      - name: Login to Docker Registry
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -122,10 +104,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image to registry
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:latest,${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:${{ github.sha }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/project-wraith:${{ github.sha }}
