@@ -66,10 +66,47 @@ jobs:
           name: swagger-docs
           path: ./docs
 
+  dotenv:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Generate dotenv for go
+        shell: bash
+        run: |
+          # Determine the environment based on the branch
+          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
+            SECRET_ENV="${{ secrets.ENV_MAIN }}"
+          elif [[ "${GITHUB_REF##*/}" == "staging" ]]; then
+            SECRET_ENV="${{ secrets.ENV_STAGING }}"
+          else
+            SECRET_ENV="${{ secrets.ENV_DEV }}"
+          fi
+          
+          # Write the secret directly to the .env file
+          echo "$SECRET_ENV" > .env
+      -
+        name: Check the content
+        run: |
+          cat .env
+      -
+        name: Upload dotenv result
+        uses: actions/upload-artifact@v3
+        with:
+          name: dotenv
+          path: .env
+
   build-and-push:
     runs-on: ubuntu-latest
     needs: [test, swagger, setup]
     steps:
+      - name: Download dotenv result
+        uses: actions/download-artifact@v3
+        with:
+          name: dotenv
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
